@@ -1,0 +1,49 @@
+{
+    "properties": {
+        "resource": {
+            "id": "product_catalog",
+            "partitionKey": {
+                "paths": [
+                    "/ProductID"
+                ],
+                "kind": "Hash"
+            },
+            "indexingPolicy": {
+                "indexingMode": "consistent",
+                "automatic": true,
+                "includedPaths": [
+                    {
+                        "path": "/*"
+                    }
+                ],
+                "excludedPaths": [
+                    {
+                        "path": "/\"_etag\"/?"
+                    },
+                    {
+                        "path": "/request_vector/*"
+                    }
+                ],
+                "vectorIndexes": [
+                    {
+                        "path": "/request_vector",
+                        "type": "diskANN"
+                    }
+                ]
+            },
+            "vectorEmbeddingPolicy": {
+                "vectorEmbeddings": [
+                    {
+                        "path": "/request_vector",
+                        "dataType": "float32",
+                        "distanceFunction": "cosine",
+                        "dimensions": 3072
+                    }
+                ]
+            }
+        },
+        "options": {
+            "throughput": 400
+        }
+    }
+}

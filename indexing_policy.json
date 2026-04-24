@@ -1,0 +1,23 @@
+{
+    "indexingMode": "consistent",
+    "automatic": true,
+    "includedPaths": [
+        {
+            "path": "/*"
+        }
+    ],
+    "excludedPaths": [
+        {
+            "path": "/\"_etag\"/?"
+        },
+        {
+            "path": "/request_vector/*"
+        }
+    ],
+    "vectorIndexes": [
+        {
+            "path": "/request_vector",
+            "type": "diskANN"
+        }
+    ]
+}

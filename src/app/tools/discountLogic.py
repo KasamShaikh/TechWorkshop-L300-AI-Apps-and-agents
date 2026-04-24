@@ -3,34 +3,42 @@ import pandas as pd
 from openai import AzureOpenAI
 from azure.identity import DefaultAzureCredential, get_bearer_token_provider
 from dotenv import load_dotenv
+
 load_dotenv()
 
 from opentelemetry import trace
 from azure.monitor.opentelemetry import configure_azure_monitor
 from azure.ai.agents.telemetry import trace_function
 import time
-# from opentelemetry.instrumentation.openai_v2 import OpenAIInstrumentor
+from opentelemetry.instrumentation.openai_v2 import OpenAIInstrumentor
 
 # Enable Azure Monitor tracing
-application_insights_connection_string = os.environ["APPLICATIONINSIGHTS_CONNECTION_STRING"]
-# configure_azure_monitor(connection_string=application_insights_connection_string)
-# OpenAIInstrumentor().instrument()
+application_insights_connection_string = os.environ[
+    "APPLICATIONINSIGHTS_CONNECTION_STRING"
+]
+configure_azure_monitor(connection_string=application_insights_connection_string)
+OpenAIInstrumentor().instrument()
 
 # scenario = os.path.basename(__file__)
 # tracer = trace.get_tracer(__name__)
 
-#Azure OpenAI
+# Azure OpenAI
 endpoint = os.getenv("gpt_endpoint")
 deployment = os.getenv("gpt_deployment")
 api_version = os.getenv("gpt_api_version")
 credential = DefaultAzureCredential()
-token_provider = get_bearer_token_provider(credential, "https://cognitiveservices.azure.com/.default")
+token_provider = get_bearer_token_provider(
+    credential, "https://cognitiveservices.azure.com/.default"
+)
 
 current_dir = os.path.dirname(os.path.abspath(__file__))
-project_root = os.path.dirname(os.path.dirname(current_dir))  # Go up 2 levels from src/tools/ to root
-PROMPT_PATH = os.path.join(project_root, 'prompts', 'DiscountLogicPrompt.txt')
-with open(PROMPT_PATH, 'r', encoding='utf-8') as file:
+project_root = os.path.dirname(
+    os.path.dirname(current_dir)
+)  # Go up 2 levels from src/tools/ to root
+PROMPT_PATH = os.path.join(project_root, "prompts", "DiscountLogicPrompt.txt")
+with open(PROMPT_PATH, "r", encoding="utf-8") as file:
     PROMPT = file.read()
+
 
 @trace_function()
 def calculate_discount(CustomerID):
@@ -46,6 +54,7 @@ def calculate_discount(CustomerID):
     """
 
     start_time = time.time()
+
     # @trace_function()
     def get_transaction_data(CustomerID):
         start_time = time.time()
@@ -59,11 +68,11 @@ def calculate_discount(CustomerID):
         Returns:
             float: The total price of purchases for the given customer.
         """
-        
+
         # Adding attributes to the current span
         span = trace.get_current_span()
         span.set_attribute("Customer ID Detected", CustomerID)
-        
+
         try:
             # This simulates reading transactional data from a database.
             if CustomerID == "CUST001":
@@ -76,8 +85,9 @@ def calculate_discount(CustomerID):
         end_time = time.time()
         print(f"get_transaction_data Execution Time: {end_time - start_time} seconds")
         return result
-    # @trace_function()    
-    def fetch_loyalty_profile_data(CustomerID:str):
+
+    # @trace_function()
+    def fetch_loyalty_profile_data(CustomerID: str):
         start_time = time.time()
         """
         Simulates connecting to Microsoft Fabric SQL endpoint.
@@ -92,33 +102,38 @@ def calculate_discount(CustomerID):
         span = trace.get_current_span()
         span.set_attribute("data_fetch_id", CustomerID)
 
-        if CustomerID == 'CUST001':
-            df = pd.DataFrame({
-                'CustomerID': ['CUST001'],
-                'CustomerName': ['Bruno'],
-                'CustomerEmail': ['bruno70@gmail.com'],
-                'LoyaltyTier': ['Platinum'],
-                'LoyaltyDiscount': [0.324],
-                'TotalAmountSpent': [2156.5],
-                'TotalAmountSpentThisYear': [524.21],
-                'Tenure': [5],
-                'Churn': [0]
-            })
+        if CustomerID == "CUST001":
+            df = pd.DataFrame(
+                {
+                    "CustomerID": ["CUST001"],
+                    "CustomerName": ["Bruno"],
+                    "CustomerEmail": ["bruno70@gmail.com"],
+                    "LoyaltyTier": ["Platinum"],
+                    "LoyaltyDiscount": [0.324],
+                    "TotalAmountSpent": [2156.5],
+                    "TotalAmountSpentThisYear": [524.21],
+                    "Tenure": [5],
+                    "Churn": [0],
+                }
+            )
         else:
-            df = pd.DataFrame({
-                'CustomerID': [CustomerID],
-                'CustomerName': ['The Other Person'],
-                'CustomerEmail': ['otherperson@example.com'],
-                'LoyaltyTier': ['Silver'],
-                'LoyaltyDiscount': [0.075],
-                'TotalAmountSpent': [225.5],
-                'TotalAmountSpentThisYear': [121.53],
-                'Tenure': [2],
-                'Churn': [0.3]
-            })
-        return df  
+            df = pd.DataFrame(
+                {
+                    "CustomerID": [CustomerID],
+                    "CustomerName": ["The Other Person"],
+                    "CustomerEmail": ["otherperson@example.com"],
+                    "LoyaltyTier": ["Silver"],
+                    "LoyaltyDiscount": [0.075],
+                    "TotalAmountSpent": [225.5],
+                    "TotalAmountSpentThisYear": [121.53],
+                    "Tenure": [2],
+                    "Churn": [0.3],
+                }
+            )
+        return df
+
     # @trace_function()
-    def discount_logic_using_model(transaction_info,loyalty_info):
+    def discount_logic_using_model(transaction_info, loyalty_info):
         start_time = time.time()
         """
         Calculates the discount percentage for a customer based on transaction and loyalty data.
@@ -138,29 +153,18 @@ def calculate_discount(CustomerID):
             api_version=api_version,
         )
         # print(f"loyalty_info is:{loyalty_info}, invoice value: {InvoiceValue} and transaction_info is:{transaction_info}")
-        prompt= "Bruno's total transaction price in this year"+ transaction_info + "and his data"+str(loyalty_info)
+        prompt = (
+            "Bruno's total transaction price in this year"
+            + transaction_info
+            + "and his data"
+            + str(loyalty_info)
+        )
         # print(f"prompt:{prompt}")
         # print(f"Prompt for agent:{PROMPT}")
         # Define chat prompt
         chat_prompt = [
-            {
-                "role": "developer",
-                "content": [
-                    {
-                        "type": "text",
-                        "text": PROMPT
-                    }
-                ]
-            },
-            {
-                "role": "user",
-                "content": [
-                    {
-                        "type": "text",
-                        "text": prompt
-                    }
-                ]
-            }
+            {"role": "developer", "content": [{"type": "text", "text": PROMPT}]},
+            {"role": "user", "content": [{"type": "text", "text": prompt}]},
         ]
 
         # Generate chat completion
@@ -169,7 +173,7 @@ def calculate_discount(CustomerID):
             messages=chat_prompt,
             max_completion_tokens=5000,
             stop=None,
-            stream=False
+            stream=False,
         )
         response_dict = completion.model_dump()
         response_message = response_dict["choices"][0]["message"]["content"]
@@ -177,14 +181,16 @@ def calculate_discount(CustomerID):
         span = trace.get_current_span()
         span.set_attribute("discount_logic_response", response_message)
         end_time = time.time()
-        print(f"discount_logic_using_model Execution Time: {end_time - start_time} seconds")
+        print(
+            f"discount_logic_using_model Execution Time: {end_time - start_time} seconds"
+        )
         return response_message
 
-    transaction_info=get_transaction_data(CustomerID)
+    transaction_info = get_transaction_data(CustomerID)
     # print(f"transaction_info{transaction_info}")
-    loyalty_info=fetch_loyalty_profile_data(CustomerID)
+    loyalty_info = fetch_loyalty_profile_data(CustomerID)
     # print(f"loyalty_info :{loyalty_info}")
-    discount_info=discount_logic_using_model(transaction_info,loyalty_info)
+    discount_info = discount_logic_using_model(transaction_info, loyalty_info)
     end_time = time.time()
     # print(f"calculate_discount Execution Time: {end_time - start_time} seconds")
     return discount_info

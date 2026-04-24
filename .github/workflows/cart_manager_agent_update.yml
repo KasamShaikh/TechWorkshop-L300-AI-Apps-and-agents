@@ -1,0 +1,47 @@
+name: Deploy cart-manager Agent
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - "src/infra/agents/cart-manager.json"
+      - "src/prompts/CartManagerPrompt.txt"
+      - ".github/workflows/cart_manager_agent_update.yml"
+  workflow_dispatch:
+
+env:
+  AGENT_NAME: cart-manager
+  AGENT_JSON: src/infra/agents/cart-manager.json
+  PROMPT_FILE: src/prompts/CartManagerPrompt.txt
+
+jobs:
+  deploy-agent:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Azure login
+        uses: azure/login@v2.1.1
+        with:
+          creds: ${{ secrets.AZURE_CREDENTIALS }}
+
+      - name: Install jq
+        run: sudo apt-get update && sudo apt-get install -y jq
+
+      - name: Render agent payload
+        run: |
+          jq --arg model "${{ secrets.GPT_DEPLOYMENT }}" \
+             --arg instructions "$(python3 -c "print(open('${PROMPT_FILE}').read())")" \
+             '.definition.model = $model | .definition.instructions = $instructions' \
+             "$AGENT_JSON" > payload.json
+
+      - name: Deploy agent version to Microsoft Foundry
+        run: |
+          az rest \
+            --method POST \
+            --url "${{ secrets.FOUNDRY_ENDPOINT }}/agents/${AGENT_NAME}/versions?api-version=2025-11-15-preview" \
+            --resource "https://ai.azure.com" \
+            --headers "Content-Type=application/json" \
+            --body @payload.json

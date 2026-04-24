@@ -1,0 +1,54 @@
+name: Deploy Chat App to Azure Container App
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - "src/**"
+      - ".github/workflows/deploy_chat_app.yml"
+  workflow_dispatch:
+
+env:
+  ACR_NAME: k7jehmnzeeptucosureg
+  IMAGE_NAME: chat-app
+  RESOURCE_GROUP: rg-techworkshop-l300-ai-agents
+  CONTAINER_APP_NAME: app-k7jehmnzeeptu
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Azure login
+        uses: azure/login@v2.1.1
+        with:
+          creds: ${{ secrets.AZURE_CREDENTIALS }}
+
+      - name: Build and push image with ACR Tasks
+        run: |
+          az acr build \
+            --registry "$ACR_NAME" \
+            --image "$IMAGE_NAME:${{ github.sha }}" \
+            --image "$IMAGE_NAME:latest" \
+            --platform linux/amd64 \
+            --file src/Dockerfile \
+            src
+
+      - name: Deploy new revision to Azure Container App
+        run: |
+          az containerapp update \
+            --name "$CONTAINER_APP_NAME" \
+            --resource-group "$RESOURCE_GROUP" \
+            --image "${ACR_NAME}.azurecr.io/${IMAGE_NAME}:${{ github.sha }}" \
+            --revision-suffix "gh$(date -u +%H%M%S)" \
+            --query "properties.latestRevisionName" -o tsv
+
+      - name: Show app URL
+        run: |
+          FQDN=$(az containerapp show -g "$RESOURCE_GROUP" -n "$CONTAINER_APP_NAME" --query "properties.configuration.ingress.fqdn" -o tsv)
+          echo "App URL: https://$FQDN"
